@@ -25,12 +25,14 @@ public class IndexModel : PageModel
     public IActionResult OnPost(string text)
     {
         _logger.LogDebug(text);
+        if (text == ""  || text == null || string.IsNullOrEmpty(text))
+            return Redirect("/");
 
         string id = Guid.NewGuid().ToString();
 
         string rankKey = "RANK-" + id;
         //TODO: посчитать rank и сохранить в БД по ключу rankKey
-        var rank = (text.Length - text.Count(symbol => !Char.IsLetter(symbol))) / (double)text.Length;
+        var rank = (text.Length - text.Count(symbol => Char.IsLetter(symbol))) / (double)text.Length;
         _redis.Put(rankKey, rank.ToString());
 
         string similarityKey = "SIMILARITY-" + id;
