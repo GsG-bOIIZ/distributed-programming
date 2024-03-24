@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using StackExchange.Redis;
+using NATS.Client;
+using System.Text;
 
 namespace Valuator.Pages;
 
@@ -25,15 +26,16 @@ public class IndexModel : PageModel
     public IActionResult OnPost(string text)
     {
         _logger.LogDebug(text);
-        if (text == ""  || text == null || string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text))
             return Redirect("/");
 
         string id = Guid.NewGuid().ToString();
 
-        string rankKey = "RANK-" + id;
-        //TODO: посчитать rank и сохранить в БД по ключу rankKey
-        var rank = (text.Length - text.Count(symbol => Char.IsLetter(symbol))) / (double)text.Length;
-        _redis.Put(rankKey, rank.ToString());
+        Options options = ConnectionFactory.GetDefaultOptions();
+        options.Url = "127.0.0.1:4222";
+        IConnection _natsConnection = new ConnectionFactory().CreateConnection(options);
+
+        _natsConnection.Publish("RankCalculator", Encoding.UTF8.GetBytes(id));
 
         string similarityKey = "SIMILARITY-" + id;
         //TODO: посчитать similarity и сохранить в БД по ключу similarityKey
@@ -43,7 +45,9 @@ public class IndexModel : PageModel
         string textKey = "TEXT-" + id;
         //TODO: сохранить в БД text по ключу textKey
         _redis.Put(textKey, text);
-        
+
+        System.Threading.Thread.Sleep(1000);
+
         return Redirect($"summary?id={id}");
     }
 
